@@ -1,3 +1,8 @@
+# IDE specific
+.vscode/
+.venv/
+
+
 build/
 dist/
 vcsSHARK.egg-info/

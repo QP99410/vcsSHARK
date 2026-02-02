@@ -5,7 +5,7 @@ import tarfile
 from pymongo.errors import DocumentTooLarge, DuplicateKeyError
 
 from pyvcsshark.datastores.basestore import BaseStore
-from mongoengine import connect, DoesNotExist, NotUniqueError
+from mongoengine import connect, DoesNotExist, NotUniqueError, BulkWriteError
 from pycoshark.mongomodels import VCSSystem, Project, Commit, Tag, File, People, FileAction, Hunk, Branch
 from pycoshark.utils import create_mongodb_uri_string
 
@@ -408,7 +408,7 @@ class CommitStorageProcess(multiprocessing.Process):
                 try:
                     logger.debug("Process %s is inserting hunks..." % self.proc_name)
                     Hunk.objects.insert(hunks, load_bulk=False)
-                except DocumentTooLarge:
+                except (DocumentTooLarge, BulkWriteError):
                     for hunk in hunks:
                         try:
                             hunk.save()
