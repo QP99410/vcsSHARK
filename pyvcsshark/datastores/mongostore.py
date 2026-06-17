@@ -7,12 +7,18 @@ from pymongo.errors import DocumentTooLarge, DuplicateKeyError
 from pyvcsshark.datastores.basestore import BaseStore
 from mongoengine import connect, DoesNotExist, NotUniqueError
 from pycoshark.mongomodels import VCSSystem, Project, Commit, Tag, File, People, FileAction, Hunk, Branch
+
+# Allow MongoEngine to process project_id safely
+from mongoengine.fields import ObjectIdField
+if 'project_id' not in Commit._fields:
+    Commit._fields['project_id'] = ObjectIdField(db_field='project_id')
+
 from pycoshark.utils import create_mongodb_uri_string
 
 import multiprocessing
 import logging
 import datetime
-
+from bson.objectid import ObjectId
 
 logger = logging.getLogger("store")
 
@@ -62,6 +68,7 @@ class MongoStore(BaseStore):
         # Get project_id
         try:
             project_id = Project.objects(name=config.project_name).get().id
+            logger.info("Found project ID {} for project named {}".format(project_id, config.project_name))
         except DoesNotExist:
             logger.error('Project with name "%s" does not exist in database!' % config.project_name)
             sys.exit(1)
@@ -72,6 +79,8 @@ class MongoStore(BaseStore):
                                                                       last_updated=datetime.datetime.today(),
                                                                       project_id=project_id)
         self.vcs_system_id = vcs_system.id
+        # Apply the fix to add project_id
+        self.project_id = project_id
 
         # Tar.gz name based on project name
         tar_gz_name = '{}.tar.gz'.format(config.project_name)
@@ -206,6 +215,7 @@ class CommitStorageProcess(multiprocessing.Process):
     :param config: object of class :class:`pyvcsshark.config.Config`, which holds configuration information
     """
     def __init__(self, queue, vcs_system_id, last_commit_date, config, name):
+        self.config = config
         multiprocessing.Process.__init__(self)
         uri = create_mongodb_uri_string(config.db_user, config.db_password, config.db_hostname, config.db_port,
                                         config.db_authentication, config.ssl_enabled)
@@ -233,6 +243,7 @@ class CommitStorageProcess(multiprocessing.Process):
 
         .. WARNING:: We only look for changed tags and branches here for already processed commits!
         """
+        logger.info("Entering the run() function in CommitStorageProcess")
         while True:
             commit = self.queue.get()
             logger.debug("Process %s is processing commit with hash %s." % (self.proc_name, commit.id))
@@ -240,6 +251,7 @@ class CommitStorageProcess(multiprocessing.Process):
             # Try to get the commit
             try:
                 mongo_commit = Commit.objects(vcs_system_id=self.vcs_system_id, revision_hash=commit.id).get()
+                logger.info("Commit already exist for this ID {}".format(self.vcs_system_id))
             except DoesNotExist:
                 mongo_commit = Commit(
                     vcs_system_id=self.vcs_system_id,
@@ -247,6 +259,30 @@ class CommitStorageProcess(multiprocessing.Process):
                 ).save()
 
             self.set_whole_commit(mongo_commit, commit)
+            # Add fix to resolve the empty matching between commits and correspond ID
+            if not getattr(mongo_commit, 'project_id', None):
+                try: 
+                    # Grab the middle binder row using the guaranteed ID
+                    vcs_doc = VCSSystem.objects(id=self.vcs_system_id).first()
+                    
+                    if vcs_doc and getattr(vcs_doc, 'project_id', None):
+                        # Extract the true parent ID and stamp it to correspond commits
+                        # mongo_commit.project_id = ObjectId(str(vcs_doc.project_id))
+                        Commit._get_collection().update_one(
+                            {"_id": mongo_commit.id},
+                            {"$set": {"project_id": ObjectId(str(vcs_doc.project_id))}}
+                        )
+                        logger.info("Matching new commit %s to Project ID: %s" % (str(commit.id)[:7], str(vcs_doc.project_id)))
+                    else:
+                        # Log explicitly if the IF condition fails to find the data
+                        if not vcs_doc:
+                            logger.warning("No VCS anchor row found in DB for ID: %s" % str(self.vcs_system_id))
+                        else:
+                            logger.warning("Found VCS anchor row, but its 'project_id' field was empty/None!")
+                except Exception as ce:
+                    logger.error("Structural fix failed with error: %s" % str(ce))
+            else:
+                logger.debug("Commit %s already has a valid Project ID: %s" % (str(commit.id)[:7], str(mongo_commit.project_id)))
 
             # Save Revision object
             mongo_commit.save()
