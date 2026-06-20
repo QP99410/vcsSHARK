@@ -38,14 +38,14 @@ class Application(object):
     
     def __init__(self,config):
 
-        if hasattr(config, 'project_name') and config.project_name:
-            try:
-                from pycoshark.mongomodels import Project
-                matched_project = Project.objects(name=config.project_name).first()
-                if matched_project:
-                    config.project_id = matched_project.id
-            except Exception:
-                pass
+        # if hasattr(config, 'project_name') and config.project_name:
+        #     try:
+        #         from pycoshark.mongomodels import Project
+        #         matched_project = Project.objects(name=config.project_name).first()
+        #         if matched_project:
+        #             config.project_id = matched_project.id
+        #     except Exception:
+        #         pass
         logger.setLevel(config.debug_level)
         
         # Only find correct parser and parse,
