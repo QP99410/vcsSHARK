@@ -6,14 +6,13 @@ from pymongo.errors import DocumentTooLarge, DuplicateKeyError
 
 from pyvcsshark.datastores.basestore import BaseStore
 from mongoengine import connect, DoesNotExist, NotUniqueError
-from mongoengine.fields import DateTimeField, ListField, ObjectIdField
+from mongoengine.fields import DateTimeField
 from pycoshark.mongomodels import VCSSystem, Project, Commit, Tag, File, People, FileAction, Hunk, Branch
 from pycoshark.utils import create_mongodb_uri_string
 
 import multiprocessing
 import logging
 import datetime
-from bson.objectid import ObjectId
 
 logger = logging.getLogger("store")
 
@@ -217,7 +216,6 @@ class CommitStorageProcess(multiprocessing.Process):
     :param config: object of class :class:`pyvcsshark.config.Config`, which holds configuration information
     """
     def __init__(self, queue, vcs_system_id, last_commit_date, config, name):
-        self.config = config
         multiprocessing.Process.__init__(self)
         uri = create_mongodb_uri_string(config.db_user, config.db_password, config.db_hostname, config.db_port,
                                         config.db_authentication, config.ssl_enabled)
@@ -253,17 +251,12 @@ class CommitStorageProcess(multiprocessing.Process):
             # Try to get the commit
             try:
                 mongo_commit = Commit.objects(vcs_system_id=self.vcs_system_id, revision_hash=commit.id).get()
-                logger.info("Commit already exists for this ID {}".format(self.vcs_system_id))
+                logger.debug("Commit already exists for this ID {}".format(self.vcs_system_id))
             except DoesNotExist:
-                try:
-                    mongo_commit = Commit(
+                mongo_commit = Commit(
                         vcs_system_id=self.vcs_system_id,
                         revision_hash=commit.id
                     ).save()
-                except (DuplicateKeyError, NotUniqueError):
-                    # Catch the multi-processing race condition winner
-                    logger.info("Another process just saved this commit, pulling existing record...")
-                    mongo_commit = Commit.objects(vcs_system_id=self.vcs_system_id, revision_hash=commit.id).get()
 
             self.set_whole_commit(mongo_commit, commit)
 
