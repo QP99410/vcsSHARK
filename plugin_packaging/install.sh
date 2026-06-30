@@ -13,6 +13,7 @@ if [ ! -z "$rpm_installed" ]; then
   if [ ! -z "$PKG_OK" ] && [ ! -z "$PKG_OK_2" ]; then
     cd $PLUGIN_PATH
     # Install vcsshark
+    python3 -m pip install --user --no-cache-dir --upgrade --upgrade-strategy only-if-needed "pycoshark @ git+https://github.com/smartshark/pycoSHARK.git@2.0.0"
     python3 $PLUGIN_PATH/setup.py install --user
     exit 0
   fi
@@ -25,6 +26,7 @@ if [ ! -z "$dpkg_query_installed" ]; then
   if [ "install ok installed" = "$PKG_OK" ] && [ "install ok installed" = "$PKG_OK_2" ]; then
     cd $PLUGIN_PATH
     # Install vcsshark
+    python3 -m pip install --user --no-cache-dir --upgrade --upgrade-strategy only-if-needed "pycoshark @ git+https://github.com/smartshark/pycoSHARK.git@2.0.0"
     python3 $PLUGIN_PATH/setup.py install --user
     exit 0
   fi
@@ -57,4 +59,5 @@ fi
 cd $PLUGIN_PATH
 
 # Install vcsshark
+python3 -m pip install --user --no-cache-dir --upgrade --upgrade-strategy only-if-needed "pycoshark @ git+https://github.com/smartshark/pycoSHARK.git@2.0.0"
 python3 $PLUGIN_PATH/setup.py install --user

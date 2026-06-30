@@ -299,7 +299,7 @@
             {
                "type":"DateType",
                "logical_type":"Date",
-               "field_name":"last_updated",
+               "field_name":"collection_date",
                "desc": "Date of the last parsing of this vcs_system "
             },
             {  

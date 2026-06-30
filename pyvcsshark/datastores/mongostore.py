@@ -16,16 +16,6 @@ import datetime
 
 logger = logging.getLogger("store")
 
-models = [Commit, File, Branch, Tag]
-
-if 'last_updated' not in VCSSystem._fields:
-    VCSSystem._fields['last_updated'] = DateTimeField(db_field='last_updated', default=None)
-    VCSSystem._db_field_map['last_updated'] = 'last_updated'
-
-if 'collection_date' in VCSSystem._fields:
-    VCSSystem._fields['collection_date'].required = False
-
-
 class MongoStore(BaseStore):
     """ Datastore implementation for saving data to the mongodb. Inherits from
     :class:`pyvcsshark.datastores.basestore.BaseStore`.
@@ -79,7 +69,7 @@ class MongoStore(BaseStore):
         # Check if vcssystem already exist, and use upsert
         vcs_system = VCSSystem.objects(url=repository_url).upsert_one(url=repository_url,
                                                                       repository_type=repository_type,
-                                                                      last_updated=datetime.datetime.today(),
+                                                                      collection_date=datetime.datetime.today(),
                                                                       project_id=project_id)
         self.vcs_system_id = vcs_system.id
 
@@ -111,7 +101,7 @@ class MongoStore(BaseStore):
         os.remove(tar_gz_name)
 
         # Get the last commit by date of the project (if there is any)
-        last_commit = Commit.objects(vcs_system_id=self.vcs_system_id).only('committer_date').order_by('-committer_date').first()
+        last_commit = Commit.objects(vcs_system_ids=self.vcs_system_id).only('committer_date').order_by('-committer_date').first()
 
 
         if last_commit is not None:
@@ -184,14 +174,13 @@ class BranchStorageProcess(multiprocessing.Process):
             logger.debug("Process {} is processing branch {} -> {}".format(self.proc_name, branch.name, branch.target))
 
             # get commit OID for Target ref
-            mongo_commit = Commit.objects.get(vcs_system_id=self.vcs_system_id, revision_hash=branch.target)
+            mongo_commit = Commit.objects.get(vcs_system_ids=self.vcs_system_id, revision_hash=branch.target)
 
             # Try to get the commit
             try:
-                mongo_branch = Branch.objects.get(vcs_system_id=self.vcs_system_id, name=branch.name)
+                mongo_branch = Branch.objects.get(name=branch.name, commit_id=mongo_commit.id)
             except DoesNotExist:
                 mongo_branch = Branch(
-                    vcs_system_id=self.vcs_system_id,
                     name=branch.name,
                     commit_id=mongo_commit.id
                 ).save()
@@ -250,11 +239,11 @@ class CommitStorageProcess(multiprocessing.Process):
 
             # Try to get the commit
             try:
-                mongo_commit = Commit.objects(vcs_system_id=self.vcs_system_id, revision_hash=commit.id).get()
+                mongo_commit = Commit.objects(vcs_system_ids=self.vcs_system_id, revision_hash=commit.id).get()
                 logger.debug("Commit already exists for this ID {}".format(self.vcs_system_id))
             except DoesNotExist:
                 mongo_commit = Commit(
-                        vcs_system_id=self.vcs_system_id,
+                        vcs_system_ids=[self.vcs_system_id],
                         revision_hash=commit.id
                     ).save()
 
@@ -323,8 +312,7 @@ class CommitStorageProcess(multiprocessing.Process):
                 try:
                     logger.debug("Process %s is creating tag %s with tagger." % (self.proc_name, tag.name))
                     mongo_tag = Tag(commit_id=commit_id, name=tag.name, message=tag.message, tagger_id=tagger_id,
-                                    date=tag.taggerDate, date_offset=tag.taggerOffset,
-                                    vcs_system_id=self.vcs_system_id).save()
+                                    date=tag.taggerDate, date_offset=tag.taggerOffset).save()
                 except (DuplicateKeyError, NotUniqueError):
                     logger.debug("Process %s found tag with tagger with name %s." % (self.proc_name, tag.name))
                     mongo_tag = Tag.objects(commit_id=commit_id, name=tag.name) \
@@ -333,7 +321,7 @@ class CommitStorageProcess(multiprocessing.Process):
                 try:
                     logger.debug("Process %s is creating tag %s." % (self.proc_name, tag.name))
                     mongo_tag = Tag(commit_id=commit_id, name=tag.name, date=tag.taggerDate,
-                                    date_offset=tag.taggerOffset, vcs_system_id=self.vcs_system_id).save()
+                                    date_offset=tag.taggerOffset).save()
                 except (DuplicateKeyError, NotUniqueError):
                     logger.debug("Process %s is found tag %s." % (self.proc_name, tag.name))
                     mongo_tag = Tag.objects(commit_id=commit_id, name=tag.name).only('id', 'name').get()
@@ -375,18 +363,18 @@ class CommitStorageProcess(multiprocessing.Process):
             if file.oldPath is not None:
                 logger.debug("Process %s is creating old file with path %s." % (self.proc_name, file.oldPath))
                 try:
-                    old_file_id = File(vcs_system_id=self.vcs_system_id, path=file.oldPath).save().id
+                    old_file_id = File(vcs_system_ids=[self.vcs_system_id], path=file.oldPath).save().id
                 except (DuplicateKeyError, NotUniqueError):
                     logger.debug("Process %s found old file with path %s." % (self.proc_name, file.oldPath))
-                    old_file_id = File.objects(vcs_system_id=self.vcs_system_id, path=file.oldPath).only('id').get().id
+                    old_file_id = File.objects(vcs_system_ids=self.vcs_system_id, path=file.oldPath).only('id').get().id
 
             # Create a new file object
             try:
                 logger.debug("Process %s is creating file with path %s." % (self.proc_name, file.path))
-                new_file_id = File(vcs_system_id=self.vcs_system_id, path=file.path).save().id
+                new_file_id = File(vcs_system_ids=[self.vcs_system_id], path=file.path).save().id
             except (DuplicateKeyError, NotUniqueError):
                 logger.debug("Process %s found file with path %s." % (self.proc_name, file.path))
-                new_file_id = File.objects(vcs_system_id=self.vcs_system_id, path=file.path).only('id').get().id
+                new_file_id = File.objects(vcs_system_ids=[self.vcs_system_id], path=file.path).only('id').get().id
                 
 
             # Create the new file action
