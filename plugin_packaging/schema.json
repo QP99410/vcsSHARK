@@ -11,7 +11,7 @@
             {  
                "type":"ObjectIdType",
                "logical_type":"RID",
-               "reference_to": "v_c_s_system",
+               "reference_to": "vcs_system",
                "field_name":"vcs_system_id",
                "desc": "ObjectID of the vcs_system to which this commits link"
             },
@@ -96,7 +96,7 @@
             {  
                "type":"ObjectIdType",
                "logical_type":"RID",
-               "reference_to": "v_c_s_system",
+               "reference_to": "vcs_system",
                "field_name":"vcs_system_id",
                "desc": "ObjectID of the vcs_system to which this branch belongs"
             },
@@ -132,7 +132,7 @@
             {  
                "type":"ObjectIdType",
                "logical_type":"RID",
-               "reference_to": "v_c_s_system",
+               "reference_to": "vcs_system",
                "field_name":"vcs_system_id",
                "desc": "ObjectID of the vcs_system to which this file belongs"
             },
@@ -316,7 +316,7 @@
                "desc": "Type of the repository (e.g., git)"
             }
          ],
-         "collection_name":"v_c_s_system",
+         "collection_name":"vcs_system",
          "desc": "Collection that contains all vcs systems from which data was collected"
       },
       {  

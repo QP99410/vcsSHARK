@@ -13,7 +13,7 @@ setup(
     author_email='trautsch@cs.uni-goettingen.de',
     description='vcsSHARK is a tool to analyze source code repositories',
     install_requires=['mongoengine', 'pygit2==0.26.2', 'pymongo==3.12.2', 
-                      'pycoshark @ git+https://github.com/smartshark/pycoSHARK.git@2.0.0'],
+                      'pycoshark @ git+https://github.com/smartshark/pycoSHARK.git@2.0.1'],
     url='https://github.com/smartshark/vcsSHARK',
     download_url='https://github.com/smartshark/vcsSHARK/zipball/master',
     packages=find_packages(),

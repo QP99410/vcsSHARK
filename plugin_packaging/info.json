@@ -49,7 +49,7 @@
             "unique": true
 		},
 		{
-			"name": "v_c_s_system",
+			"name": "vcs_system",
 			"shard_key": [{"url": "hashed"}]
 		}
 	],
