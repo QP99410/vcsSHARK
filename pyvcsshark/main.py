@@ -37,6 +37,7 @@ class Application(object):
     """
     
     def __init__(self,config):
+
         logger.setLevel(config.debug_level)
         
         # Only find correct parser and parse,

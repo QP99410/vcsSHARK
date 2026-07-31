@@ -76,3 +76,4 @@ target/
 # IDE
 .idea
 plugin_packaging/*.tar
+.DS_Store

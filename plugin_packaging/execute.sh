@@ -5,7 +5,7 @@ NEW_UUID=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
 
 cp -R $REPOSITORY_PATH "/dev/shm/$NEW_UUID"
 
-COMMAND="python3.5 $PLUGIN_PATH/vcsshark.py --project-name $3 --db-hostname $5 --db-port $6 --db-database $7 --db-driver mongo --path /dev/shm/$NEW_UUID"
+COMMAND="python3 $PLUGIN_PATH/vcsshark.py --project-name $3 --db-hostname $5 --db-port $6 --db-database $7 --db-driver mongo --path /dev/shm/$NEW_UUID"
 
 if [ ! -z ${4+x} ] && [ ${4} != "None" ]; then
     COMMAND="$COMMAND --log-level ${4}"
